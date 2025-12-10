@@ -1,0 +1,269 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  BARANGAY_STAFF
+  MUNICIPAL_ADMIN
+  MDRRMC_OFFICER
+  MAYOR
+  DEPARTMENT_HEAD
+}
+
+enum DisasterType {
+  TYPHOON
+  STORM
+  FLOOD
+  EARTHQUAKE
+  FIRE
+  LANDSLIDE
+  VOLCANIC_ERUPTION
+  DROUGHT
+  OTHER
+}
+
+enum DisasterStatus {
+  ACTIVE
+  RESOLVED
+  CLOSED
+}
+
+enum AlertLevel {
+  SIGNAL_1
+  SIGNAL_2
+  SIGNAL_3
+  SIGNAL_4
+  SIGNAL_5
+  LOW
+  MODERATE
+  HIGH
+  CRITICAL
+}
+
+enum EvacueeStatus {
+  EVACUATED
+  RETURNED_HOME
+  RELOCATED
+  MISSING
+}
+
+enum ReliefDistributionStatus {
+  PENDING
+  APPROVED
+  DISTRIBUTED
+  REJECTED
+}
+
+enum SITREPStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+}
+
+model User {
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  password      String
+  role          UserRole
+  barangayId    String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  barangay      Barangay? @relation(fields: [barangayId], references: [id])
+  evacuees      Evacuee[]
+  distributions ReliefDistribution[]
+  sitreps       SITREP[]
+
+  @@index([email])
+  @@index([role])
+  @@index([barangayId])
+}
+
+model Barangay {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  population  Int?
+  contactInfo String?
+  coordinates String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users            User[]
+  evacuees         Evacuee[]
+  families         Family[]
+  evacuationCenters EvacuationCenter[]
+  distributions    ReliefDistribution[]
+  sitreps          SITREP[]
+  affectedDisasters DisasterEventBarangay[]
+
+  @@index([code])
+}
+
+model DisasterEvent {
+  id            String         @id @default(cuid())
+  type          DisasterType
+  severity      AlertLevel
+  startDate     DateTime
+  endDate       DateTime?
+  status        DisasterStatus @default(ACTIVE)
+  description   String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  affectedBarangays DisasterEventBarangay[]
+  distributions     ReliefDistribution[]
+  sitreps           SITREP[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+model DisasterEventBarangay {
+  id              String        @id @default(cuid())
+  disasterEventId String
+  barangayId      String
+  createdAt       DateTime      @default(now())
+
+  disasterEvent   DisasterEvent @relation(fields: [disasterEventId], references: [id], onDelete: Cascade)
+  barangay        Barangay      @relation(fields: [barangayId], references: [id], onDelete: Cascade)
+
+  @@unique([disasterEventId, barangayId])
+  @@index([disasterEventId])
+  @@index([barangayId])
+}
+
+model Family {
+  id            String   @id @default(cuid())
+  headOfFamily  String
+  barangayId    String
+  contactInfo   String?
+  address       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  barangay      Barangay @relation(fields: [barangayId], references: [id])
+  members       Evacuee[]
+
+  @@index([barangayId])
+}
+
+model EvacuationCenter {
+  id              String   @id @default(cuid())
+  name            String
+  barangayId      String
+  capacity        Int
+  currentOccupancy Int     @default(0)
+  address         String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  barangay        Barangay @relation(fields: [barangayId], references: [id])
+  evacuees        Evacuee[]
+
+  @@index([barangayId])
+}
+
+model Evacuee {
+  id                String        @id @default(cuid())
+  name              String
+  age               Int
+  gender            String
+  barangayId        String
+  evacuationCenterId String?
+  familyId          String?
+  status            EvacueeStatus @default(EVACUATED)
+  specialNeeds      String[]      @default([])
+  entryDate         DateTime      @default(now())
+  exitDate          DateTime?
+  contactInfo       String?
+  registeredById    String
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  barangay          Barangay          @relation(fields: [barangayId], references: [id])
+  evacuationCenter  EvacuationCenter? @relation(fields: [evacuationCenterId], references: [id])
+  family            Family?           @relation(fields: [familyId], references: [id])
+  registeredBy      User               @relation(fields: [registeredById], references: [id])
+
+  @@index([barangayId])
+  @@index([evacuationCenterId])
+  @@index([familyId])
+  @@index([status])
+}
+
+model ReliefGood {
+  id            String   @id @default(cuid())
+  name          String
+  category      String
+  unit          String
+  currentStock  Int      @default(0)
+  minimumStock  Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributions ReliefDistribution[]
+
+  @@index([category])
+}
+
+model ReliefDistribution {
+  id                String                    @id @default(cuid())
+  barangayId        String
+  disasterEventId   String?
+  reliefGoodId      String
+  quantity          Int
+  distributedDate   DateTime                  @default(now())
+  distributedById   String
+  recipientCount    Int
+  status            ReliefDistributionStatus  @default(PENDING)
+  distributionPoint String?
+  notes             String?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  barangay          Barangay       @relation(fields: [barangayId], references: [id])
+  disasterEvent     DisasterEvent? @relation(fields: [disasterEventId], references: [id])
+  reliefGood        ReliefGood     @relation(fields: [reliefGoodId], references: [id])
+  distributedBy     User           @relation(fields: [distributedById], references: [id])
+
+  @@index([barangayId])
+  @@index([disasterEventId])
+  @@index([reliefGoodId])
+  @@index([status])
+  @@index([distributedDate])
+}
+
+model SITREP {
+  id              String      @id @default(cuid())
+  barangayId      String
+  disasterEventId String?
+  reportDate      DateTime    @default(now())
+  evacueeCount    Int         @default(0)
+  damages         Json?       // Array of damage objects
+  status          SITREPStatus @default(DRAFT)
+  submittedById   String
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  barangay        Barangay       @relation(fields: [barangayId], references: [id])
+  disasterEvent   DisasterEvent? @relation(fields: [disasterEventId], references: [id])
+  submittedBy     User           @relation(fields: [submittedById], references: [id])
+
+  @@index([barangayId])
+  @@index([disasterEventId])
+  @@index([reportDate])
+  @@index([status])
+}
+
