@@ -83,6 +83,12 @@ Edit `.env` and configure:
 - `NEXTAUTH_SECRET`: A random secret string for NextAuth
 - `NEXTAUTH_URL`: Your application URL (e.g., http://localhost:3000)
 
+**For Vercel Deployment:**
+Make sure to add these environment variables in your Vercel project settings:
+- `DATABASE_URL`: Your production PostgreSQL connection string
+- `NEXTAUTH_SECRET`: Generate a secure random string (e.g., `openssl rand -base64 32`)
+- `NEXTAUTH_URL`: Your Vercel deployment URL (e.g., https://your-app.vercel.app)
+
 4. Set up the database:
 ```bash
 # Generate Prisma Client
