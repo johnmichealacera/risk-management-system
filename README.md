@@ -94,18 +94,26 @@ Make sure to add these environment variables in your Vercel project settings:
 # Generate Prisma Client
 npx prisma generate
 
-# Push schema to database
-npx prisma db push
-
-# (Optional) Run migrations
+# Option A: Use migrations (recommended for production)
 npx prisma migrate dev
+
+# Option B: Push schema directly (for development only)
+npx prisma db push
 ```
 
-5. Seed initial data (optional):
+5. Seed initial data:
 ```bash
-# Create a seed script in prisma/seed.ts and run:
 npx prisma db seed
+# or
+npm run db:seed
 ```
+
+**For Vercel Deployment:**
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment instructions. After deploying, call:
+```
+POST https://your-app.vercel.app/api/setup?token=YOUR_SETUP_SECRET
+```
+This will run migrations and seed the database automatically.
 
 6. Run the development server:
 ```bash
